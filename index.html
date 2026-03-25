@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premier League Scrabble Champion</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    background: #1a472a;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 48px, rgba(255,255,255,0.03) 48px, rgba(255,255,255,0.03) 50px);
+    font-family: 'Inter', sans-serif;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 16px 60px;
+  }
+
+  h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.4rem;
+    text-align: center;
+    margin-bottom: 6px;
+    text-shadow: 2px 3px 0 rgba(0,0,0,0.3);
+  }
+  .subtitle {
+    font-size: 1rem;
+    opacity: 0.8;
+    margin-bottom: 28px;
+    text-align: center;
+  }
+
+  /* Toggle */
+  .toggle-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .toggle-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .toggle-btn:hover { background: rgba(255,255,255,0.18); }
+  .toggle-btn.active {
+    background: #ffd700;
+    color: #1a472a;
+    border-color: #ffd700;
+  }
+
+  /* Loading state */
+  .loading {
+    text-align: center;
+    margin: 40px 0;
+  }
+  .loading .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255,255,255,0.2);
+    border-top-color: #ffd700;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Winner card */
+  .winner-card {
+    background: linear-gradient(135deg, #ffd700 0%, #f0c000 50%, #ffd700 100%);
+    color: #1a472a;
+    border-radius: 20px;
+    padding: 32px 40px;
+    text-align: center;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 0 60px rgba(255,215,0,0.3);
+    margin-bottom: 10px;
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+    animation: revealWinner 0.8s ease-out forwards;
+    display: none;
+  }
+  @keyframes revealWinner {
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .winner-card .trophy { font-size: 3rem; margin-bottom: 8px; }
+  .winner-card .label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; opacity: 0.7; }
+  .winner-card .player-name { font-family: 'Fredoka One', cursive; font-size: 2rem; margin: 6px 0; }
+  .winner-card .score-big { font-family: 'Fredoka One', cursive; font-size: 3.5rem; line-height: 1; }
+  .winner-card .score-label { font-size: 0.9rem; font-weight: 600; opacity: 0.7; }
+  .winner-card .breakdown { margin-top: 14px; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; word-break: break-all; }
+
+  .stats-bar {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+    opacity: 0.6;
+    display: none;
+  }
+
+  /* Leaderboard */
+  .leaderboard {
+    max-width: 600px;
+    width: 100%;
+    display: none;
+  }
+  .leaderboard h2 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+    text-align: center;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.3);
+  }
+
+  .player-row {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    transition: background 0.2s;
+    animation: slideIn 0.4s ease-out both;
+  }
+  .player-row:hover { background: rgba(255,255,255,0.14); }
+  .player-row.gold { background: rgba(255,215,0,0.15); border: 1px solid rgba(255,215,0,0.3); }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .rank {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    width: 40px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .rank.first { color: #ffd700; }
+  .rank.second { color: #c0c0c0; }
+  .rank.third { color: #cd7f32; }
+
+  .player-info { flex: 1; margin-left: 10px; min-width: 0; }
+  .player-info .name { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player-info .letters {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+  }
+
+  .scrabble-score {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 50%;
+  }
+  .tile {
+    background: #f5e6c8;
+    color: #3d2b1f;
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.75rem;
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  .tile .pts {
+    position: absolute;
+    bottom: 0px;
+    right: 1px;
+    font-size: 0.38rem;
+    font-weight: 600;
+  }
+  .total-score {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.3rem;
+    min-width: 34px;
+    text-align: right;
+    color: #ffd700;
+    margin-left: 4px;
+  }
+
+  .footer {
+    margin-top: 40px;
+    font-size: 0.75rem;
+    opacity: 0.4;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .footer a { color: inherit; }
+</style>
+</head>
+<body>
+
+<h1>Premier League Scrabble</h1>
+<p class="subtitle">Which all-time PL surname scores highest on the board?</p>
+
+<div class="toggle-bar" id="toggleBar" style="display:none;">
+  <button class="toggle-btn active" data-mode="all">All Surnames</button>
+  <button class="toggle-btn" data-mode="single">Single Word Only</button>
+</div>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <p style="opacity:0.8">Loading 7,000+ Premier League players...</p>
+</div>
+
+<div class="winner-card" id="winner"></div>
+<div class="stats-bar" id="statsBar"></div>
+<div class="leaderboard" id="leaderboardSection">
+  <h2>Top 20 Leaderboard</h2>
+  <div id="leaderboard"></div>
+</div>
+<p class="footer">
+  Data from premierleague.com &bull; Standard English Scrabble tile values<br>
+  All-time Premier League players (1992 &ndash; present)
+</p>
+
+<script>
+const TILE_SCORES = {
+  A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,
+  Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10
+};
+
+// Normalize accented chars to base letters (É→E, Ñ→N, etc.)
+function normalize(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
+}
+
+function scoreSurname(surname) {
+  const clean = normalize(surname);
+  let total = 0;
+  const letters = [];
+  for (const ch of clean) {
+    const pts = TILE_SCORES[ch] || 0;
+    total += pts;
+    letters.push({ letter: ch, points: pts });
+  }
+  return { total, letters, clean };
+}
+
+function isSingleWord(surname) {
+  // No spaces, no hyphens — just a single continuous name
+  return !/[\s\-]/.test(surname.trim());
+}
+
+let allPlayers = [];
+let currentMode = 'all';
+
+function getFilteredPlayers() {
+  if (currentMode === 'single') {
+    return allPlayers.filter(p => isSingleWord(p.l));
+  }
+  return allPlayers;
+}
+
+function render() {
+  const players = getFilteredPlayers();
+  const scored = players.map(p => {
+    const { total, letters, clean } = scoreSurname(p.l);
+    return { first: p.f, last: p.l, total, letters, clean };
+  }).sort((a, b) => b.total - a.total || a.last.localeCompare(b.last));
+
+  // Stats
+  const statsBar = document.getElementById('statsBar');
+  statsBar.style.display = 'block';
+  const modeLabel = currentMode === 'single' ? 'single-word' : '';
+  statsBar.textContent = `Scored ${players.length.toLocaleString()} ${modeLabel} all-time Premier League players`.replace(/  +/g, ' ');
+
+  // Winner
+  const winner = scored[0];
+  const winnerEl = document.getElementById('winner');
+  if (winner) {
+    const breakdownStr = winner.letters.map(l => `${l.letter}(${l.points})`).join(' + ');
+    winnerEl.innerHTML = `
+      <div class="trophy">🏆</div>
+      <div class="label">Highest Scoring Surname</div>
+      <div class="player-name">${winner.first} ${winner.last}</div>
+      <div class="score-big">${winner.total}</div>
+      <div class="score-label">Scrabble Points</div>
+      <div class="breakdown">${breakdownStr}</div>
+    `;
+    winnerEl.style.display = 'block';
+    // Re-trigger animation
+    winnerEl.style.animation = 'none';
+    winnerEl.offsetHeight; // reflow
+    winnerEl.style.animation = '';
+  }
+
+  // Leaderboard
+  const leaderboardSection = document.getElementById('leaderboardSection');
+  leaderboardSection.style.display = 'block';
+  const board = document.getElementById('leaderboard');
+  board.innerHTML = '';
+  const top20 = scored.slice(0, 20);
+
+  top20.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'player-row' + (i === 0 ? ' gold' : '');
+    row.style.animationDelay = `${i * 0.06}s`;
+
+    const rankClass = i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : '';
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+
+    const tilesHTML = p.letters.map(l =>
+      `<span class="tile">${l.letter}<span class="pts">${l.points}</span></span>`
+    ).join('');
+
+    const breakdownText = p.letters.map(l => `${l.letter}=${l.points}`).join(', ');
+
+    row.innerHTML = `
+      <span class="rank ${rankClass}">${medal || (i + 1)}</span>
+      <div class="player-info">
+        <div class="name">${p.first} ${p.last}</div>
+        <div class="letters">${breakdownText}</div>
+      </div>
+      <div class="scrabble-score">
+        ${tilesHTML}
+        <span class="total-score">${p.total}</span>
+      </div>
+    `;
+    board.appendChild(row);
+  });
+}
+
+// Toggle buttons
+document.getElementById('toggleBar').addEventListener('click', e => {
+  const btn = e.target.closest('.toggle-btn');
+  if (!btn) return;
+  currentMode = btn.dataset.mode;
+  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+});
+
+// Load data
+fetch('players.json')
+  .then(r => r.json())
+  .then(data => {
+    allPlayers = data;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('toggleBar').style.display = 'flex';
+    render();
+  })
+  .catch(err => {
+    document.getElementById('loading').innerHTML =
+      `<p style="color:#ff6b6b">Failed to load player data. Make sure players.json is served from the same origin.</p>`;
+    console.error(err);
+  });
+</script>
+</body>
+</html>
