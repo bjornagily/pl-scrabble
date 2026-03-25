@@ -200,8 +200,10 @@
   .winner-card .score-label { font-size: 0.9rem; font-weight: 600; opacity: 0.7; }
   .winner-card .winner-tiles { margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
   .winner-card .winner-tiles .tile { background: rgba(26,71,42,0.15); color: #1a472a; }
+  .winner-card .winner-tiles .tile.used-blank { background: #c0392b !important; color: #fff !important; }
+  .winner-card .winner-tiles .tile.missing { background: #c0392b !important; color: #fff !important; }
   .tile.blank { background: #e8d9bb; color: #999; font-weight: 400; }
-  .tile.used-blank { background: #d4c4a0; color: #3d2b1f; border: 2px dashed #a89878; }
+  .tile.used-blank { background: #e74c3c; color: #fff; }
   .tile.missing { background: #c0392b; color: #fff; opacity: 0.7; }
 
   .stats-bar {
