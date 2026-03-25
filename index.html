@@ -62,6 +62,8 @@
     color: #1a472a;
     border-color: #ffd700;
   }
+  .strict-toggle { margin-left: 8px; border-left: 1px solid rgba(255,255,255,0.15); padding-left: 18px; }
+  .strict-toggle.active { background: #e67e22; border-color: #e67e22; }
 
   /* Search */
   .search-bar {
@@ -144,6 +146,9 @@
   .winner-card .score-label { font-size: 0.9rem; font-weight: 600; opacity: 0.7; }
   .winner-card .winner-tiles { margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
   .winner-card .winner-tiles .tile { background: rgba(26,71,42,0.15); color: #1a472a; }
+  .tile.blank { background: #e8d9bb; color: #999; font-weight: 400; }
+  .tile.used-blank { background: #d4c4a0; color: #3d2b1f; border: 2px dashed #a89878; }
+  .tile.missing { background: #c0392b; color: #fff; opacity: 0.7; }
 
   .stats-bar {
     text-align: center;
@@ -224,23 +229,92 @@
   .tile {
     background: #f5e6c8;
     color: #3d2b1f;
-    width: 22px;
-    height: 22px;
-    border-radius: 3px;
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.7rem;
+    font-size: 0.9rem;
     box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     position: relative;
   }
   .tile .pts {
     position: absolute;
-    bottom: 0px;
-    right: 1px;
-    font-size: 0.35rem;
+    bottom: 1px;
+    right: 2px;
+    font-size: 0.45rem;
     font-weight: 600;
+  }
+
+  /* Team Battle */
+  .team-battle {
+    max-width: 600px;
+    width: 100%;
+    margin-top: 40px;
+    display: none;
+  }
+  .team-battle h2 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.5rem;
+    margin-bottom: 6px;
+    text-align: center;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.3);
+  }
+  .team-battle .battle-sub {
+    text-align: center;
+    font-size: 0.8rem;
+    opacity: 0.5;
+    margin-bottom: 16px;
+  }
+  .team-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    grid-template-rows: auto auto;
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    transition: background 0.2s;
+    gap: 0 10px;
+  }
+  .team-row:hover { background: rgba(255,255,255,0.14); }
+  .team-row.gold { background: rgba(255,215,0,0.15); border: 1px solid rgba(255,215,0,0.3); }
+  .team-rank {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    text-align: center;
+    grid-row: 1 / 3;
+    align-self: center;
+  }
+  .team-info { min-width: 0; }
+  .team-info .team-name { font-weight: 700; font-size: 1.05rem; }
+  .team-info .team-meta { font-size: 0.75rem; opacity: 0.6; margin-top: 2px; }
+  .team-avg {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.4rem;
+    color: #ffd700;
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    text-align: right;
+  }
+  .team-bar-wrap {
+    grid-column: 2;
+    margin-top: 6px;
+  }
+  .team-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .team-bar .fill {
+    height: 100%;
+    background: #ffd700;
+    border-radius: 3px;
+    transition: width 0.6s ease-out;
   }
 
   .footer {
@@ -261,6 +335,7 @@
 <div class="toggle-bar" id="toggleBar" style="display:none;">
   <button class="toggle-btn active" data-mode="all">All Surnames</button>
   <button class="toggle-btn" data-mode="single">Single Word Only</button>
+  <button class="toggle-btn strict-toggle" id="strictToggle">Strict Mode</button>
 </div>
 
 <div class="search-bar" id="searchBar" style="display:none;">
@@ -282,6 +357,11 @@
   <h2>Top 20 Leaderboard</h2>
   <div id="leaderboard"></div>
 </div>
+<div class="team-battle" id="teamBattle">
+  <h2>Team Battle</h2>
+  <p class="battle-sub">Average Scrabble score per player surname (current squad)</p>
+  <div id="teamList"></div>
+</div>
 <p class="footer">
   Data from premierleague.com &bull; Standard English Scrabble tile values<br>
   All-time Premier League players (1992 &ndash; present)
@@ -293,21 +373,65 @@ const TILE_SCORES = {
   Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10
 };
 
+// Standard Scrabble tile counts (English)
+const TILE_COUNTS = {
+  A:9,B:2,C:2,D:4,E:12,F:2,G:3,H:2,I:9,J:1,K:1,L:4,M:2,
+  N:6,O:8,P:2,Q:1,R:6,S:4,T:6,U:4,V:2,W:2,X:1,Y:2,Z:1
+};
+const BLANK_TILES = 2;
+
 // Normalize accented chars to base letters (É→E, Ñ→N, etc.)
 function normalize(str) {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
 }
 
-function scoreSurname(surname) {
-  const clean = normalize(surname);
+function scoreSurname(surname, strict = false) {
+  const normalized = surname.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
   let total = 0;
   const letters = [];
-  for (const ch of clean) {
-    const pts = TILE_SCORES[ch] || 0;
-    total += pts;
-    letters.push({ letter: ch, points: pts });
+
+  // In strict mode, track remaining tiles from a single Scrabble box
+  const remaining = strict ? { ...TILE_COUNTS } : null;
+  let blanksLeft = strict ? BLANK_TILES : 0;
+
+  for (const ch of normalized) {
+    if (/[A-Z]/.test(ch)) {
+      if (strict) {
+        if (remaining[ch] > 0) {
+          // Normal tile available
+          remaining[ch]--;
+          const pts = TILE_SCORES[ch] || 0;
+          total += pts;
+          letters.push({ letter: ch, points: pts });
+        } else if (blanksLeft > 0) {
+          // Use a blank tile (0 points)
+          blanksLeft--;
+          letters.push({ letter: ch, points: 0, blank: true });
+        } else {
+          // No tiles left — can't spell this surname
+          letters.push({ letter: ch, points: -1, missing: true });
+        }
+      } else {
+        const pts = TILE_SCORES[ch] || 0;
+        total += pts;
+        letters.push({ letter: ch, points: pts });
+      }
+    } else if (ch === '-' || ch === ' ') {
+      letters.push({ letter: '-', points: null });
+    }
   }
-  return { total, letters, clean };
+
+  const possible = !strict || letters.every(l => l.points !== -1);
+  return { total, letters, clean: normalized.replace(/[^A-Z]/g, ''), possible };
+}
+
+function renderTiles(letters) {
+  return letters.map(l => {
+    if (l.points === null) return `<span class="tile blank">-</span>`;
+    if (l.missing) return `<span class="tile missing">${l.letter}<span class="pts">X</span></span>`;
+    if (l.blank) return `<span class="tile used-blank">${l.letter}<span class="pts">0</span></span>`;
+    return `<span class="tile">${l.letter}<span class="pts">${l.points}</span></span>`;
+  }).join('');
 }
 
 function isSingleWord(surname) {
@@ -317,6 +441,9 @@ function isSingleWord(surname) {
 
 let allPlayers = [];
 let currentMode = 'all';
+let strictMode = false;
+
+function isStrictMode() { return strictMode; }
 
 function getFilteredPlayers() {
   if (currentMode === 'single') {
@@ -327,24 +454,26 @@ function getFilteredPlayers() {
 
 function render() {
   const players = getFilteredPlayers();
+  const strict = isStrictMode();
   const scored = players.map(p => {
-    const { total, letters, clean } = scoreSurname(p.l);
-    return { first: p.f, last: p.l, total, letters, clean };
-  }).sort((a, b) => b.total - a.total || a.last.localeCompare(b.last));
+    const { total, letters, clean, possible } = scoreSurname(p.l, strict);
+    return { first: p.f, last: p.l, total, letters, clean, possible };
+  })
+  .filter(p => !strict || p.possible)
+  .sort((a, b) => b.total - a.total || a.last.localeCompare(b.last));
 
   // Stats
   const statsBar = document.getElementById('statsBar');
   statsBar.style.display = 'block';
-  const modeLabel = currentMode === 'single' ? 'single-word' : '';
-  statsBar.textContent = `Scored ${players.length.toLocaleString()} ${modeLabel} all-time Premier League players`.replace(/  +/g, ' ');
+  const modeLabel = currentMode === 'single' ? 'single-word' : currentMode === 'strict' ? 'spellable' : '';
+  const strictNote = strict ? ` (${scored.length.toLocaleString()} spellable with one Scrabble set)` : '';
+  statsBar.textContent = `Scored ${players.length.toLocaleString()} all-time Premier League players${strictNote}`.replace(/  +/g, ' ');
 
   // Winner
   const winner = scored[0];
   const winnerEl = document.getElementById('winner');
   if (winner) {
-    const winnerTilesHTML = winner.letters.map(l =>
-      `<span class="tile">${l.letter}<span class="pts">${l.points}</span></span>`
-    ).join('');
+    const winnerTilesHTML = renderTiles(winner.letters);
     winnerEl.innerHTML = `
       <div class="trophy">🏆</div>
       <div class="label">Highest Scoring Surname</div>
@@ -376,9 +505,7 @@ function render() {
     const rankClass = i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : '';
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
 
-    const tilesHTML = p.letters.map(l =>
-      `<span class="tile">${l.letter}<span class="pts">${l.points}</span></span>`
-    ).join('');
+    const tilesHTML = renderTiles(p.letters);
 
     row.innerHTML = `
       <span class="rank ${rankClass}">${medal || (i + 1)}</span>
@@ -397,9 +524,17 @@ function render() {
 document.getElementById('toggleBar').addEventListener('click', e => {
   const btn = e.target.closest('.toggle-btn');
   if (!btn) return;
-  currentMode = btn.dataset.mode;
-  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+
+  if (btn.id === 'strictToggle') {
+    // Strict is an independent toggle
+    strictMode = !strictMode;
+    btn.classList.toggle('active', strictMode);
+  } else {
+    // All/Single are mutually exclusive
+    currentMode = btn.dataset.mode;
+    document.querySelectorAll('.toggle-btn:not(.strict-toggle)').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
   render();
 });
 
@@ -419,14 +554,15 @@ document.getElementById('searchInput').addEventListener('input', e => {
     }
 
     const players = getFilteredPlayers();
+    const strict = isStrictMode();
     const matches = players
       .map(p => {
-        const { total, letters, clean } = scoreSurname(p.l);
-        return { first: p.f, last: p.l, total, letters, clean };
+        const { total, letters, clean, possible } = scoreSurname(p.l, strict);
+        return { first: p.f, last: p.l, total, letters, clean, possible };
       })
-      .filter(p =>
-        p.first.toLowerCase().includes(query) ||
-        p.last.toLowerCase().includes(query)
+      .filter(p => (!strict || p.possible) &&
+        (p.first.toLowerCase().includes(query) ||
+        p.last.toLowerCase().includes(query))
       )
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
@@ -476,6 +612,37 @@ fetch('players.json')
       `<p style="color:#ff6b6b">Failed to load player data. Make sure players.json is served from the same origin.</p>`;
     console.error(err);
   });
+
+// Load team battle data
+fetch('teams.json')
+  .then(r => r.json())
+  .then(teams => {
+    const section = document.getElementById('teamBattle');
+    // Hidden for now — data quality not good enough
+    section.style.display = 'none';
+    const list = document.getElementById('teamList');
+    const maxAvg = teams[0]?.avg || 1;
+
+    teams.forEach((t, i) => {
+      const row = document.createElement('div');
+      row.className = 'team-row' + (i === 0 ? ' gold' : '');
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+      const pct = Math.round((t.avg / maxAvg) * 100);
+      row.innerHTML = `
+        <span class="team-rank">${medal || (i + 1)}</span>
+        <div class="team-info">
+          <div class="team-name">${t.club}</div>
+          <div class="team-meta">${t.count} players &bull; Best: ${t.best} (${t.bestScore}pts)</div>
+        </div>
+        <span class="team-avg">${t.avg}</span>
+        <div class="team-bar-wrap">
+          <div class="team-bar"><div class="fill" style="width:${pct}%"></div></div>
+        </div>
+      `;
+      list.appendChild(row);
+    });
+  })
+  .catch(() => {});
 </script>
 </body>
 </html>
