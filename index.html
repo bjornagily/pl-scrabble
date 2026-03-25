@@ -36,6 +36,31 @@
     text-align: center;
   }
 
+  /* Tab bar */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .tab-btn {
+    background: rgba(255,255,255,0.05);
+    border: none;
+    color: rgba(255,255,255,0.6);
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    padding: 10px 28px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { background: rgba(255,255,255,0.1); }
+  .tab-btn.active {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+  }
+
   /* Toggle */
   .toggle-bar {
     display: flex;
@@ -62,12 +87,41 @@
     color: #1a472a;
     border-color: #ffd700;
   }
-  .strict-toggle { margin-left: 8px; border-left: 1px solid rgba(255,255,255,0.15); padding-left: 18px; }
-  .strict-toggle.active { background: #e67e22; border-color: #e67e22; }
+  .strict-row {
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    opacity: 0.7;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .strict-row:hover { opacity: 1; }
+  .strict-row .strict-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid rgba(255,255,255,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    transition: all 0.2s;
+  }
+  .strict-row.active { opacity: 1; }
+  .strict-row.active .strict-check {
+    background: #e67e22;
+    border-color: #e67e22;
+    color: #fff;
+  }
+  .strict-row .strict-label { user-select: none; }
+  .strict-row .strict-hint { font-size: 0.7rem; opacity: 0.6; }
 
   /* Search */
   .search-bar {
-    max-width: 400px;
+    max-width: 600px;
     width: 100%;
     margin-bottom: 28px;
   }
@@ -126,7 +180,7 @@
     border-radius: 20px;
     padding: 32px 40px;
     text-align: center;
-    max-width: 480px;
+    max-width: 600px;
     width: 100%;
     box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 0 60px rgba(255,215,0,0.3);
     margin-bottom: 10px;
@@ -330,12 +384,22 @@
 <body>
 
 <h1>Premier League Scrabble</h1>
-<p class="subtitle">Which all-time PL surname scores highest on the board?</p>
+<p class="subtitle" id="subtitle">Which all-time PL surname scores highest on the board?</p>
 
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="players">Players</button>
+  <button class="tab-btn" data-tab="teams">Teams</button>
+</div>
+
+<div id="playersTab">
 <div class="toggle-bar" id="toggleBar" style="display:none;">
   <button class="toggle-btn active" data-mode="all">All Surnames</button>
   <button class="toggle-btn" data-mode="single">Single Word Only</button>
-  <button class="toggle-btn strict-toggle" id="strictToggle">Strict Mode</button>
+</div>
+<div class="strict-row" id="strictToggle">
+  <span class="strict-check"></span>
+  <span class="strict-label">Strict Mode</span>
+  <span class="strict-hint">(one Scrabble set only)</span>
 </div>
 
 <div class="search-bar" id="searchBar" style="display:none;">
@@ -357,6 +421,26 @@
   <h2>Top 20 Leaderboard</h2>
   <div id="leaderboard"></div>
 </div>
+</div><!-- end playersTab -->
+
+<div id="teamsTab" style="display:none;">
+<div class="toggle-bar" id="teamsToggleBar">
+  <button class="toggle-btn active" data-team-mode="full">Full Name</button>
+  <button class="toggle-btn" data-team-mode="short">Short Name</button>
+</div>
+<div class="strict-row" id="teamsStrictToggle">
+  <span class="strict-check"></span>
+  <span class="strict-label">Strict Mode</span>
+  <span class="strict-hint">(one Scrabble set only)</span>
+</div>
+<div class="winner-card" id="teamsWinner"></div>
+<div class="stats-bar" id="teamsStatsBar"></div>
+<div class="leaderboard" id="teamsLeaderboardSection" style="display:block;">
+  <h2>All-Time PL Teams</h2>
+  <div id="teamsLeaderboard"></div>
+</div>
+</div><!-- end teamsTab -->
+
 <div class="team-battle" id="teamBattle">
   <h2>Team Battle</h2>
   <p class="battle-sub">Average Scrabble score per player surname (current squad)</p>
@@ -524,17 +608,16 @@ function render() {
 document.getElementById('toggleBar').addEventListener('click', e => {
   const btn = e.target.closest('.toggle-btn');
   if (!btn) return;
+  currentMode = btn.dataset.mode;
+  document.querySelectorAll('#toggleBar .toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+});
 
-  if (btn.id === 'strictToggle') {
-    // Strict is an independent toggle
-    strictMode = !strictMode;
-    btn.classList.toggle('active', strictMode);
-  } else {
-    // All/Single are mutually exclusive
-    currentMode = btn.dataset.mode;
-    document.querySelectorAll('.toggle-btn:not(.strict-toggle)').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-  }
+// Strict toggle (players)
+document.getElementById('strictToggle').addEventListener('click', () => {
+  strictMode = !strictMode;
+  document.getElementById('strictToggle').classList.toggle('active', strictMode);
   render();
 });
 
@@ -643,6 +726,164 @@ fetch('teams.json')
     });
   })
   .catch(() => {});
+
+// === TEAMS TAB ===
+const PL_TEAMS = [
+  { full: "Arsenal", short: "Arsenal" },
+  { full: "Aston Villa", short: "Villa" },
+  { full: "AFC Bournemouth", short: "Bournemouth" },
+  { full: "Barnsley", short: "Barnsley" },
+  { full: "Birmingham City", short: "Birmingham" },
+  { full: "Blackburn Rovers", short: "Blackburn" },
+  { full: "Blackpool", short: "Blackpool" },
+  { full: "Bolton Wanderers", short: "Bolton" },
+  { full: "Bradford City", short: "Bradford" },
+  { full: "Brentford", short: "Brentford" },
+  { full: "Brighton and Hove Albion", short: "Brighton" },
+  { full: "Burnley", short: "Burnley" },
+  { full: "Cardiff City", short: "Cardiff" },
+  { full: "Charlton Athletic", short: "Charlton" },
+  { full: "Chelsea", short: "Chelsea" },
+  { full: "Coventry City", short: "Coventry" },
+  { full: "Crystal Palace", short: "Palace" },
+  { full: "Derby County", short: "Derby" },
+  { full: "Everton", short: "Everton" },
+  { full: "Fulham", short: "Fulham" },
+  { full: "Huddersfield Town", short: "Huddersfield" },
+  { full: "Hull City", short: "Hull" },
+  { full: "Ipswich Town", short: "Ipswich" },
+  { full: "Leeds United", short: "Leeds" },
+  { full: "Leicester City", short: "Leicester" },
+  { full: "Liverpool", short: "Liverpool" },
+  { full: "Luton Town", short: "Luton" },
+  { full: "Manchester City", short: "Man City" },
+  { full: "Manchester United", short: "Man Utd" },
+  { full: "Middlesbrough", short: "Middlesbrough" },
+  { full: "Newcastle United", short: "Newcastle" },
+  { full: "Norwich City", short: "Norwich" },
+  { full: "Nottingham Forest", short: "Forest" },
+  { full: "Oldham Athletic", short: "Oldham" },
+  { full: "Portsmouth", short: "Portsmouth" },
+  { full: "Queens Park Rangers", short: "QPR" },
+  { full: "Reading", short: "Reading" },
+  { full: "Sheffield United", short: "Sheff Utd" },
+  { full: "Sheffield Wednesday", short: "Sheff Wed" },
+  { full: "Southampton", short: "Southampton" },
+  { full: "Stoke City", short: "Stoke" },
+  { full: "Sunderland", short: "Sunderland" },
+  { full: "Swansea City", short: "Swansea" },
+  { full: "Swindon Town", short: "Swindon" },
+  { full: "Tottenham Hotspur", short: "Spurs" },
+  { full: "Watford", short: "Watford" },
+  { full: "West Bromwich Albion", short: "West Brom" },
+  { full: "West Ham United", short: "West Ham" },
+  { full: "Wigan Athletic", short: "Wigan" },
+  { full: "Wimbledon", short: "Wimbledon" },
+  { full: "Wolverhampton Wanderers", short: "Wolves" },
+];
+
+let teamMode = 'full';
+let teamsStrictMode = false;
+
+function renderTeams() {
+  const strict = teamsStrictMode;
+  const useShort = teamMode === 'short';
+
+  const scored = PL_TEAMS.map(t => {
+    const name = useShort ? t.short : t.full;
+    const { total, letters, clean, possible } = scoreSurname(name, strict);
+    return { name, full: t.full, short: t.short, total, letters, clean, possible };
+  })
+  .filter(t => !strict || t.possible)
+  .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+
+  // Stats
+  const statsBar = document.getElementById('teamsStatsBar');
+  statsBar.style.display = 'block';
+  const label = useShort ? 'short' : 'full';
+  statsBar.textContent = `Scored ${scored.length} all-time PL team ${label} names`;
+
+  // Winner
+  const winner = scored[0];
+  const winnerEl = document.getElementById('teamsWinner');
+  if (winner) {
+    const winnerTilesHTML = renderTiles(winner.letters);
+    winnerEl.innerHTML = `
+      <div class="trophy">🏆</div>
+      <div class="label">Highest Scoring Team Name</div>
+      <div class="winner-first">${useShort ? winner.full : ''}</div>
+      <div class="winner-last">${winner.name}</div>
+      <div class="score-big">${winner.total}</div>
+      <div class="score-label">Scrabble Points</div>
+      <div class="winner-tiles">${winnerTilesHTML}</div>
+    `;
+    winnerEl.style.display = 'block';
+    winnerEl.style.animation = 'none';
+    winnerEl.offsetHeight;
+    winnerEl.style.animation = '';
+  }
+
+  // Leaderboard
+  const board = document.getElementById('teamsLeaderboard');
+  board.innerHTML = '';
+  scored.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.className = 'player-row' + (i === 0 ? ' gold' : '');
+    row.style.animationDelay = `${i * 0.04}s`;
+    const rankClass = i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : '';
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+    const tilesHTML = renderTiles(t.letters);
+    const sub = useShort ? t.full : t.short;
+    row.innerHTML = `
+      <span class="rank ${rankClass}">${medal || (i + 1)}</span>
+      <div class="player-info">
+        <div class="first-name">${sub}</div>
+        <div class="last-name">${t.name}</div>
+      </div>
+      <span class="total-score">${t.total}</span>
+      <div class="row-tiles">${tilesHTML}</div>
+    `;
+    board.appendChild(row);
+  });
+}
+
+// Teams toggle
+document.getElementById('teamsToggleBar').addEventListener('click', e => {
+  const btn = e.target.closest('.toggle-btn');
+  if (!btn || !btn.dataset.teamMode) return;
+  teamMode = btn.dataset.teamMode;
+  document.querySelectorAll('#teamsToggleBar .toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTeams();
+});
+
+// Strict toggle (teams)
+document.getElementById('teamsStrictToggle').addEventListener('click', () => {
+  teamsStrictMode = !teamsStrictMode;
+  document.getElementById('teamsStrictToggle').classList.toggle('active', teamsStrictMode);
+  renderTeams();
+});
+
+// Tab switching
+document.querySelector('.tab-bar').addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  const tab = btn.dataset.tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const subtitle = document.getElementById('subtitle');
+  if (tab === 'players') {
+    document.getElementById('playersTab').style.display = '';
+    document.getElementById('teamsTab').style.display = 'none';
+    subtitle.textContent = 'Which all-time PL surname scores highest on the board?';
+  } else {
+    document.getElementById('playersTab').style.display = 'none';
+    document.getElementById('teamsTab').style.display = '';
+    subtitle.textContent = 'Which Premier League team name scores highest?';
+    renderTeams();
+  }
+});
 </script>
 </body>
 </html>
